@@ -117,8 +117,8 @@ class Tag(db.Model):
 
 class Vote(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    value = db.Column(db.Integer, nullable=False)  # 1 for upvote, -1 for downvote
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    value = db.Column(db.Integer)  # +1 or -1
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     question_id = db.Column(db.Integer, db.ForeignKey('question.id'), nullable=True)
     answer_id = db.Column(db.Integer, db.ForeignKey('answer.id'), nullable=True)
 
