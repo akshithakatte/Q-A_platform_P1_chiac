@@ -167,12 +167,30 @@ body {
     margin-right: 6px;
     margin-bottom: 6px;
     transition: all 0.2s ease;
+    border: 1px solid var(--border-color);
+    text-decoration: none;
 }
 
 .tag:hover {
     background-color: var(--primary-color);
     color: white;
     transform: translateY(-1px);
+    border-color: var(--primary-color);
+}
+
+/* Dark mode tag fixes */
+[data-theme="dark"] .tag {
+    background-color: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .tag:hover {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
 }
 
 /* Vote system */
@@ -184,7 +202,7 @@ body {
     min-width: 60px;
 }
 
-.vote-btn {
+.vote-button {
     background: none;
     border: none;
     color: var(--text-tertiary);
@@ -194,19 +212,56 @@ body {
     transition: all 0.2s ease;
 }
 
-.vote-btn:hover {
+.vote-button:hover {
     color: var(--primary-color);
     background-color: var(--bg-tertiary);
 }
 
-.vote-btn.active {
+.vote-button.active {
     color: var(--primary-color);
+}
+
+/* Dark mode vote button fixes - AGGRESSIVE STYLING */
+[data-theme="dark"] .vote-button {
+    color: #cbd5e1 !important; /* Light gray text */
+    border: 3px solid #475569 !important; /* Medium gray border */
+    background-color: #334155 !important; /* Dark background */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+[data-theme="dark"] .vote-button:hover {
+    color: #ffffff !important; /* White text on hover */
+    background-color: #4f46e5 !important; /* Purple background */
+    border-color: #4f46e5 !important; /* Purple border */
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.6) !important;
+    transform: scale(1.1) !important;
+}
+
+[data-theme="dark"] .vote-button:active {
+    transform: scale(0.95) !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Ensure FontAwesome icons in vote buttons are visible */
+[data-theme="dark"] .vote-button .fas {
+    color: inherit;
+    opacity: 1;
 }
 
 .vote-count {
     font-weight: 600;
     color: var(--text-primary);
     font-size: 1.125rem;
+}
+
+/* Dark mode vote count */
+[data-theme="dark"] .vote-count {
+    color: var(--text-primary);
 }
 
 /* Search bar */
