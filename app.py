@@ -156,6 +156,31 @@ class Notification(db.Model):
     
     user = db.relationship('User', backref=db.backref('notifications', lazy=True, cascade='all, delete-orphan'))
 
+# Custom validators for password strength
+def validate_password_strength(form, field):
+    """Custom validator to ensure password meets security requirements"""
+    password = field.data
+
+    # Check minimum length
+    if len(password) < 8:
+        raise ValidationError('Password must be at least 8 characters long')
+
+    # Check for uppercase letters
+    if not re.search(r'[A-Z]', password):
+        raise ValidationError('Password must contain at least one uppercase letter (A-Z)')
+
+    # Check for lowercase letters
+    if not re.search(r'[a-z]', password):
+        raise ValidationError('Password must contain at least one lowercase letter (a-z)')
+
+    # Check for numbers
+    if not re.search(r'\d', password):
+        raise ValidationError('Password must contain at least one number (0-9)')
+
+    # Check for special characters
+    if not re.search(r'[!@#$%^&*()_+\-=\[\]{};:"\\|,.<>\/?]', password):
+        raise ValidationError('Password must contain at least one special character (!@#$%^&*()_+-=[]{}:"\\|,.<>/?))')
+
 # Forms
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
@@ -165,7 +190,10 @@ class LoginForm(FlaskForm):
 class RegisterForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=4, max=20)])
     email = StringField('Email', validators=[DataRequired(), Email()])
-    password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
+    password = PasswordField('Password', validators=[
+        DataRequired(),
+        validate_password_strength
+    ])
     confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
     submit = SubmitField('Register')
 
@@ -187,7 +215,7 @@ class SettingsForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
     current_password = PasswordField('Current Password')
     new_password = PasswordField('New Password', validators=[
-        Length(min=6, message='Password must be at least 6 characters long'),
+        validate_password_strength,
         EqualTo('confirm_password', message='Passwords must match')
     ])
     confirm_password = PasswordField('Confirm New Password')
@@ -205,29 +233,51 @@ content_analyzer = None
 def get_ai_engines():
     """Lazy initialization of AI engines"""
     global ai_engine, smart_search, content_analyzer
-    if ai_engine is None:
-        ai_engine = AIRecommendationEngine()
-        smart_search = SmartSearchEngine()
-        content_analyzer = ContentAnalyzer()
-    return ai_engine, smart_search, content_analyzer
+    try:
+        if ai_engine is None:
+            ai_engine = AIRecommendationEngine()
+        if smart_search is None:
+            smart_search = SmartSearchEngine()
+        if content_analyzer is None:
+            content_analyzer = ContentAnalyzer()
+    except Exception as e:
+        print(f"AI engines not available: {e}")
+        ai_engine = smart_search = content_analyzer = None
 
-# Routes
+    # Always return a tuple, even if None
+    return (ai_engine, smart_search, content_analyzer)
+
 @app.route('/')
 def index():
     search_form = SearchForm()
     
-    # Get AI engines
-    ai_engine, smart_search, content_analyzer = get_ai_engines()
+    # Get AI engines (handle gracefully if not available)
+    try:
+        ai_result = get_ai_engines()
+        if ai_result and len(ai_result) == 3:
+            ai_engine, smart_search, content_analyzer = ai_result
+        else:
+            ai_engine = smart_search = content_analyzer = None
+    except Exception as e:
+        print(f"AI engines not available: {e}")
+        ai_engine = smart_search = content_analyzer = None
     
     # Get personalized recommendations for logged-in users
     recommended_questions = []
     trending_topics = []
     
-    if current_user.is_authenticated:
-        recommended_questions = ai_engine.recommend_questions_for_user(current_user.id, limit=5)
+    if current_user.is_authenticated and ai_engine:
+        try:
+            recommended_questions = ai_engine.recommend_questions_for_user(current_user.id, limit=5)
+        except Exception as e:
+            print(f"AI recommendations not available: {e}")
     
     # Get trending topics
-    trending_topics = smart_search.get_trending_topics(days=7, limit=5)
+    if smart_search:
+        try:
+            trending_topics = smart_search.get_trending_topics(days=7, limit=5)
+        except Exception as e:
+            print(f"Trending topics not available: {e}")
     
     # Get all questions
     questions = Question.query.order_by(Question.created_at.desc()).all()

@@ -37,6 +37,31 @@
                     <div class="mb-3">
                         {{ form.password.label(class="form-label") }}
                         {{ form.password(class="form-control") }}
+                        
+                        <!-- Password Requirements -->
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <strong>Password must contain:</strong>
+                            </small>
+                            <div class="mt-1">
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-check-circle text-success"></i> At least 8 characters
+                                </small>
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-check-circle text-success"></i> One uppercase letter (A-Z)
+                                </small>
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-check-circle text-success"></i> One lowercase letter (a-z)
+                                </small>
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-check-circle text-success"></i> One number (0-9)
+                                </small>
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-check-circle text-success"></i> One special character (!@#$%^&*()_+-=[]{}:"\\|,.<>/?)
+                                </small>
+                            </div>
+                        </div>
+                        
                         {% if form.password.errors %}
                             <div class="text-danger">
                                 {% for error in form.password.errors %}
