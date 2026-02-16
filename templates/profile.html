@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}{{ profile_user.username }} - Profile{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <!-- User Profile Header -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-2 text-center">
+                        <div class="user-avatar mb-3">
+                            <i class="fas fa-user fa-4x text-primary"></i>
+                        </div>
+                    </div>
+                    <div class="col-md-10">
+                        <h2 class="mb-1">{{ profile_user.username }}</h2>
+                        <p class="text-muted mb-2">{{ profile_user.email }}</p>
+                        
+                        <!-- User Stats -->
+                        <div class="row mb-3">
+                            <div class="col-md-3 col-6 mb-2">
+                                <div class="text-center">
+                                    <div class="stat-number">{{ stats.questions_asked }}</div>
+                                    <div class="stat-label">Questions</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-6 mb-2">
+                                <div class="text-center">
+                                    <div class="stat-number">{{ stats.answers_given }}</div>
+                                    <div class="stat-label">Answers</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-6 mb-2">
+                                <div class="text-center">
+                                    <div class="stat-number">{{ stats.accepted_answers }}</div>
+                                    <div class="stat-label">Accepted</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-6 mb-2">
+                                <div class="text-center">
+                                    <div class="stat-number">{{ stats.reputation }}</div>
+                                    <div class="stat-label">Reputation</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Badge and Join Date -->
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="badge bg-primary">{{ stats.badge_level }}</span>
+                                <span class="text-muted ms-2">Joined {{ stats.joined_date }}</span>
+                            </div>
+                            <div class="text-muted">
+                                <i class="fas fa-eye"></i> {{ stats.profile_views }} profile views
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User's Recent Questions -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4><i class="fas fa-question-circle"></i> Recent Questions</h4>
+            </div>
+            <div class="card-body">
+                {% if questions %}
+                    {% for question in questions %}
+                    <div class="question-card mb-3">
+                        <div class="card-body">
+                            <h5>
+                                <a href="{{ url_for('question_detail', id=question.id) }}" class="text-decoration-none">
+                                    {{ question.title }}
+                                </a>
+                            </h5>
+                            <p class="text-muted mb-2">
+                                {{ question.content|clean_html|truncate(150)|nl2br|safe }}
+                            </p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    {% for tag in question.tags %}
+                                    <span class="tag">{{ tag.name }}</span>
+                                    {% endfor %}
+                                </div>
+                                <div class="text-muted">
+                                    <i class="fas fa-clock"></i> {{ question.created_at.strftime('%b %d, %Y') }} • 
+                                    <i class="fas fa-comment"></i> {{ question.answers|length }} answers
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No questions asked yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- User's Recent Answers -->
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-reply"></i> Recent Answers</h4>
+            </div>
+            <div class="card-body">
+                {% if answers %}
+                    {% for answer in answers %}
+                    <div class="answer-item mb-3 pb-3 {% if not loop.last %}border-bottom{% endif %}">
+                        <div class="answer-content">
+                            <p class="mb-2">
+                                <a href="{{ url_for('question_detail', id=answer.question_id) }}" class="text-decoration-none">
+                                    <strong>Q: {{ answer.question.title }}</strong>
+                                </a>
+                            </p>
+                            <p class="mb-2">{{ answer.content[:200] }}{% if answer.content|length > 200 %}...{% endif %}</p>
+                            {% if answer.is_accepted %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check"></i> Accepted Answer
+                            </span>
+                            {% endif %}
+                        </div>
+                        <div class="text-muted">
+                            <i class="fas fa-clock"></i> {{ answer.created_at.strftime('%b %d, %Y at %I:%M %p') }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No answers given yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.user-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background-color: var(--bg-tertiary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--border-color);
+}
+
+.stat-number {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.question-card {
+    border-left: 4px solid var(--primary-color);
+}
+
+.answer-item {
+    border-left: 4px solid var(--secondary-color);
+}
+
+[data-theme="dark"] .user-avatar {
+    background-color: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .stat-number {
+    color: var(--primary-color);
+}
+
+[data-theme="dark"] .stat-label {
+    color: var(--text-secondary);
+}
+</style>
+{% endblock %}

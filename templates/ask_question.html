@@ -25,7 +25,8 @@
                     </div>
                     <div class="mb-3">
                         {{ form.content.label(class="form-label") }}
-                        {{ form.content(class="form-control", rows="8") }}
+                        <div id="editor" style="height: 200px;"></div>
+                        {{ form.content(class="d-none") }}
                         {% if form.content.errors %}
                             <div class="text-danger">
                                 {% for error in form.content.errors %}
@@ -38,6 +39,7 @@
                         {{ form.tags.label(class="form-label") }}
                         {{ form.tags(class="form-control", placeholder="python, flask, database") }}
                         <small class="text-muted">Separate tags with commas</small>
+                        <div id="tag-suggestions" class="mt-2"></div>
                         {% if form.tags.errors %}
                             <div class="text-danger">
                                 {% for error in form.tags.errors %}
@@ -57,4 +59,68 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Initialize Quill editor
+var quill = new Quill('#editor', {
+    theme: 'snow',
+    placeholder: 'Write your question here...',
+    modules: {
+        toolbar: [
+            ['bold', 'italic', 'underline', 'strike'],
+            ['blockquote', 'code-block'],
+            [{ 'header': 1 }, { 'header': 2 }],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            [{ 'script': 'sub'}, { 'script': 'super' }],
+            [{ 'indent': '-1'}, { 'indent': '+1' }],
+            ['link', 'image'],
+            ['clean']
+        ]
+    }
+});
+
+// Sync Quill content with hidden form field
+quill.on('text-change', function(delta, oldDelta, source) {
+    // Clean up the HTML content before storing
+    let content = quill.root.innerHTML;
+    // Remove unnecessary span styles and clean up
+    content = content.replace(/<span[^>]*style="[^"]*"[^>]*>(.*?)<\/span>/g, '$1');
+    content = content.replace(/<p[^>]*style="[^"]*"[^>]*>/g, '<p>');
+    content = content.replace(/style="[^"]*"/g, '');
+    document.getElementById('content').value = content;
+});
+
+// AI Tag Suggestions
+document.getElementById('title').addEventListener('input', function() {
+    const title = this.value;
+    const content = quill.getText();
+    
+    if (title.length > 3) {
+        fetch(`/api/suggest_tags?title=${encodeURIComponent(title)}&content=${encodeURIComponent(content)}`)
+            .then(response => response.json())
+            .then(tags => {
+                const suggestionsDiv = document.getElementById('tag-suggestions');
+                suggestionsDiv.innerHTML = '';
+                
+                tags.forEach(tag => {
+                    const tagBtn = document.createElement('button');
+                    tagBtn.type = 'button';
+                    tagBtn.className = 'btn btn-sm btn-outline-primary me-1 mb-1';
+                    tagBtn.textContent = tag.name;
+                    tagBtn.onclick = function() {
+                        const currentTags = document.getElementById('tags').value;
+                        const tagsArray = currentTags ? currentTags.split(',').map(t => t.trim()) : [];
+                        if (!tagsArray.includes(tag.name)) {
+                            tagsArray.push(tag.name);
+                            document.getElementById('tags').value = tagsArray.join(', ');
+                        }
+                    };
+                    suggestionsDiv.appendChild(tagBtn);
+                });
+            });
+    }
+});
+</script>
 {% endblock %}

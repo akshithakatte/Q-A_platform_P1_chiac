@@ -1,13 +1,14 @@
+import os
+import re
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_wtf import FlaskForm, CSRFProtect
 from wtforms import StringField, TextAreaField, PasswordField, SubmitField, SelectField
-from wtforms.validators import DataRequired, Length, EqualTo, Email
+from wtforms.validators import DataRequired, Length, EqualTo, Email, ValidationError, Regexp
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
-import os
-import re
+from flask_socketio import SocketIO
 
 # Import AI features
 from ai_features import AIRecommendationEngine, SmartSearchEngine, ContentAnalyzer
@@ -25,6 +26,16 @@ app.config['WTF_CSRF_ENABLED'] = True
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
 
+# Initialize SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Register API blueprints (if available)
+try:
+    from rest_api import register_api_blueprints
+    register_api_blueprints(app)
+except ImportError:
+    pass  # API not available, continue with web app only
+
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
@@ -36,6 +47,25 @@ def nl2br_filter(text):
     if text is None:
         return ''
     return re.sub(r'\r?\n', '<br>', text)
+
+@app.template_filter('clean_html')
+def clean_html_filter(text):
+    """Clean up HTML content from rich text editor"""
+    if text is None:
+        return ''
+    # Remove unnecessary span styles and clean up
+    text = re.sub(r'<span[^>]*style="[^"]*"[^>]*>(.*?)<\/span>', r'\1', text)
+    text = re.sub(r'<p[^>]*style="[^"]*"[^>]*>', '<p>', text)
+    text = re.sub(r'style="[^"]*"', '', text)
+    # Convert paragraphs to plain text with line breaks
+    text = re.sub(r'<p[^>]*>(.*?)<\/p>', r'\1\n\n', text)
+    text = re.sub(r'<br[^>]*>', '\n', text)
+    # Remove any remaining HTML tags
+    text = re.sub(r'<[^>]+>', '', text)
+    # Clean up extra whitespace
+    text = re.sub(r'\n\s*\n', '\n\n', text)
+    text = text.strip()
+    return text
 
 # Models
 class User(UserMixin, db.Model):
@@ -156,6 +186,38 @@ class Notification(db.Model):
     
     user = db.relationship('User', backref=db.backref('notifications', lazy=True, cascade='all, delete-orphan'))
 
+# Custom validators for password strength
+def validate_password_strength(form, field):
+    """Custom validator to ensure password meets security requirements"""
+    password = field.data
+    
+    # Check for uppercase letters
+    if not re.search(r'[A-Z]', password):
+        raise ValidationError('Password must contain at least one uppercase letter (A-Z)')
+    
+    # Check for lowercase letters
+    if not re.search(r'[a-z]', password):
+        raise ValidationError('Password must contain at least one lowercase letter (a-z)')
+    
+    # Check for numbers
+    if not re.search(r'\d', password):
+        raise ValidationError('Password must contain at least one number (0-9)')
+    
+    # Check for special characters
+    if not re.search(r'[!@#$%^&*()_+\-=\[\]{};:"\\|,.<>\/?]', password):
+        raise ValidationError('Password must contain at least one special character (!@#$%^&*()_+-=[]{}:"\\|,.<>/?))')
+    
+    # Check for common patterns
+    if password.lower() in ['password', '123456', 'qwerty', 'admin', 'letmein']:
+        raise ValidationError('Password cannot be a common password')
+    
+    # Check if password is too similar to username
+    if hasattr(form, 'username') and form.username.data:
+        username = form.username.data.lower()
+        password_lower = password.lower()
+        if username in password_lower or password_lower in username:
+            raise ValidationError('Password is too similar to username')
+
 # Forms
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
@@ -165,7 +227,11 @@ class LoginForm(FlaskForm):
 class RegisterForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=4, max=20)])
     email = StringField('Email', validators=[DataRequired(), Email()])
-    password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
+    password = PasswordField('Password', validators=[
+        DataRequired(), 
+        Length(min=8, max=128, message='Password must be between 8 and 128 characters'),
+        validate_password_strength
+    ])
     confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
     submit = SubmitField('Register')
 
@@ -178,6 +244,16 @@ class QuestionForm(FlaskForm):
 class AnswerForm(FlaskForm):
     content = TextAreaField('Your Answer', validators=[DataRequired()])
     submit = SubmitField('Post Answer')
+
+class SettingsForm(FlaskForm):
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    current_password = PasswordField('Current Password')
+    new_password = PasswordField('New Password', validators=[
+        Length(min=8, message='Password must be at least 8 characters long'),
+        EqualTo('confirm_password', message='Passwords must match')
+    ])
+    confirm_password = PasswordField('Confirm New Password')
+    submit = SubmitField('Update Settings')
 
 class SearchForm(FlaskForm):
     query = StringField('Search', validators=[DataRequired()])
@@ -455,64 +531,173 @@ def search():
     
     if form.validate_on_submit() or request.args.get('q'):
         import time
+        from datetime import datetime, timedelta
         start_time = time.time()
         
         query = request.args.get('q') or form.query.data
+        
+        # Get filter parameters
+        sort_by = request.args.get('sort', 'relevance')
+        time_period = request.args.get('time', 'all')
+        has_answers = request.args.get('has_answers') == 'true'
+        has_accepted = request.args.get('accepted') == 'true'
+        no_answers = request.args.get('no_answers') == 'true'
+        min_votes = int(request.args.get('min_votes', 0))
         
         # Get AI engines and use smart search
         ai_engine, smart_search, content_analyzer = get_ai_engines()
         
         if current_user.is_authenticated:
-            questions = smart_search.search_questions(query, current_user.id, limit=20)
+            questions = smart_search.search_questions(query, current_user.id, limit=50)
         else:
-            questions = smart_search.search_questions(query, limit=20)
+            questions = smart_search.search_questions(query, limit=50)
+        
+        # Apply filters
+        filtered_questions = []
+        
+        for question in questions:
+            # Time period filter
+            if time_period != 'all':
+                cutoff_date = None
+                if time_period == 'today':
+                    cutoff_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+                elif time_period == 'week':
+                    cutoff_date = datetime.utcnow() - timedelta(days=7)
+                elif time_period == 'month':
+                    cutoff_date = datetime.utcnow() - timedelta(days=30)
+                elif time_period == 'year':
+                    cutoff_date = datetime.utcnow() - timedelta(days=365)
+                
+                if cutoff_date and question.created_at < cutoff_date:
+                    continue
+            
+            # Answer status filters
+            if has_answers and len(question.answers) == 0:
+                continue
+            if has_accepted and not any(answer.is_accepted for answer in question.answers):
+                continue
+            if no_answers and len(question.answers) > 0:
+                continue
+            
+            # Minimum votes filter
+            vote_count = sum(vote.value for vote in question.votes) if question.votes else 0
+            if vote_count < min_votes:
+                continue
+            
+            filtered_questions.append(question)
+        
+        # Sort results
+        if sort_by == 'newest':
+            filtered_questions.sort(key=lambda x: x.created_at, reverse=True)
+        elif sort_by == 'oldest':
+            filtered_questions.sort(key=lambda x: x.created_at)
+        elif sort_by == 'votes':
+            filtered_questions.sort(key=lambda x: sum(v.value for vote in x.votes) if x.votes else 0, reverse=True)
+        elif sort_by == 'answers':
+            filtered_questions.sort(key=lambda x: len(x.answers), reverse=True)
+        # 'relevance' sorting is already handled by the AI search
+        
+        questions = filtered_questions[:20]  # Limit to 20 results
         
         search_time = round((time.time() - start_time) * 1000, 2)  # in milliseconds
-        
-        # Sort by creation date
-        questions.sort(key=lambda x: x.created_at, reverse=True)
     
     return render_template('search_results.html', questions=questions, form=form, query=request.args.get('q', ''), search_time=search_time)
 
-# AI-powered routes
-@app.route('/api/similar_questions/<int:question_id>')
-def similar_questions(question_id):
-    """API endpoint for getting similar questions"""
-    ai_engine, smart_search, content_analyzer = get_ai_engines()
-    similar = ai_engine.get_similar_questions(question_id, limit=5)
-    return jsonify([{
-        'id': q.id,
-        'title': q.title,
-        'url': url_for('question_detail', id=q.id)
-    } for q in similar])
-
-@app.route('/api/suggest_tags')
-def suggest_tags():
-    """API endpoint for suggesting tags based on content"""
-    title = request.args.get('title', '')
-    content = request.args.get('content', '')
+@app.route('/profile/<username>')
+def user_profile(username):
+    """View user profile page"""
+    user = User.query.filter_by(username=username).first_or_404()
     
-    ai_engine, smart_search, content_analyzer = get_ai_engines()
-    suggested = content_analyzer.suggest_tags(title, content, limit=5)
-    return jsonify([{
-        'name': tag.name,
-        'id': tag.id
-    } for tag in suggested])
+    # Update user reputation and badge
+    user.reputation = user.calculate_reputation()
+    user.update_badge_level()
+    db.session.commit()
+    
+    # Get user's questions and answers
+    questions = Question.query.filter_by(user_id=user.id).order_by(Question.created_at.desc()).limit(10).all()
+    answers = Answer.query.filter_by(user_id=user.id).order_by(Answer.created_at.desc()).limit(10).all()
+    
+    # Calculate statistics
+    stats = {
+        'questions_asked': len(user.questions),
+        'answers_given': len(user.answers),
+        'accepted_answers': len([a for a in user.answers if a.is_accepted]),
+        'reputation': user.reputation,
+        'badge_level': user.badge_level,
+        'profile_views': user.profile_views,
+        'joined_date': user.created_at.strftime('%B %Y')
+    }
+    
+    return render_template('profile.html', 
+                         profile_user=user,
+                         questions=questions,
+                         answers=answers,
+                         stats=stats)
 
-@app.route('/api/trending_topics')
-def trending_topics():
-    """API endpoint for trending topics"""
-    ai_engine, smart_search, content_analyzer = get_ai_engines()
-    trending = smart_search.get_trending_topics(days=7, limit=10)
-    return jsonify([{
-        'tag': topic['tag'].name,
-        'activity_count': topic['activity_count'],
-        'sample_questions': [{
-            'id': q.id,
-            'title': q.title,
-            'url': url_for('question_detail', id=q.id)
-        } for q in topic['sample_questions']]
-    } for topic in trending])
+@app.route('/settings', methods=['GET', 'POST'])
+@login_required
+def settings():
+    """User settings page"""
+    form = SettingsForm()
+    
+    if form.validate_on_submit():
+        # Update user information
+        current_user.email = form.email.data
+        
+        # Update password if provided
+        if form.current_password.data and form.new_password.data:
+            if current_user.check_password(form.current_password.data):
+                current_user.set_password(form.new_password.data)
+                flash('Password updated successfully!', 'success')
+            else:
+                flash('Current password is incorrect!', 'error')
+                return render_template('settings.html', form=form)
+        
+        db.session.commit()
+        flash('Settings updated successfully!', 'success')
+        return redirect(url_for('settings'))
+    
+    # Pre-fill form with current data
+    form.email.data = current_user.email
+    
+    return render_template('settings.html', form=form)
+
+@app.route('/delete_account', methods=['POST'])
+@login_required
+def delete_account():
+    """Delete user account"""
+    if request.method == 'POST':
+        # Get confirmation
+        confirmation = request.form.get('confirmation')
+        
+        if confirmation and confirmation.lower() == 'delete my account':
+            # Delete user's questions, answers, and votes
+            user = current_user
+            
+            # Delete votes first
+            Vote.query.filter_by(user_id=user.id).delete()
+            
+            # Delete answers
+            Answer.query.filter_by(user_id=user.id).delete()
+            
+            # Delete questions
+            Question.query.filter_by(user_id=user.id).delete()
+            
+            # Delete user badges
+            UserBadge.query.filter_by(user_id=user.id).delete()
+            
+            # Delete user
+            db.session.delete(user)
+            db.session.commit()
+            
+            logout_user()
+            flash('Your account has been deleted successfully.', 'info')
+            return redirect(url_for('index'))
+        else:
+            flash('Invalid confirmation. Please type "delete my account" to confirm.', 'danger')
+            return redirect(url_for('settings'))
+    
+    return redirect(url_for('settings'))
 
 @app.route('/dashboard')
 @login_required
@@ -520,7 +705,7 @@ def dashboard():
     """Enhanced user dashboard with analytics"""
     user = current_user
     
-    # Update user reputation and badge
+    # ... (rest of the code remains the same)
     user.reputation = user.calculate_reputation()
     user.update_badge_level()
     db.session.commit()
@@ -539,8 +724,11 @@ def dashboard():
     recent_questions = Question.query.filter_by(user_id=user.id).order_by(Question.created_at.desc()).limit(5).all()
     recent_answers = Answer.query.filter_by(user_id=user.id).order_by(Answer.created_at.desc()).limit(5).all()
     
-    # Badges
-    user_badges = UserBadge.query.filter_by(user_id=user.id).order_by(UserBadge.earned_at.desc()).all()
+    # Badges (check if UserBadge table exists)
+    try:
+        user_badges = UserBadge.query.filter_by(user_id=user.id).order_by(UserBadge.earned_at.desc()).all()
+    except:
+        user_badges = []
     
     # Get AI engines and recommended questions
     ai_engine, smart_search, content_analyzer = get_ai_engines()
@@ -620,4 +808,5 @@ if __name__ == '__main__':
             
             print('Sample data added successfully!')
     
-    app.run(debug=True, port=5001)
+    # Use socketio.run() instead of app.run() to handle SocketIO connections
+    socketio.run(app, debug=True, port=5001)
