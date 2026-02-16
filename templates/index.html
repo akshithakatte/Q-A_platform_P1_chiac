@@ -68,7 +68,9 @@
                                     {% endfor %}
                                 </div>
                                 <div class="stats">
-                                    <i class="fas fa-user"></i> {{ question.author.username }} • 
+                                    <a href="{{ url_for('user_profile', username=question.author.username) }}" class="text-decoration-none">
+                                        <i class="fas fa-user"></i> {{ question.author.username }}
+                                    </a> • 
                                     <i class="fas fa-clock"></i> {{ question.created_at.strftime('%b %d, %Y') }} • 
                                     <i class="fas fa-comment"></i> {{ question.answers|length }} answers
                                 </div>

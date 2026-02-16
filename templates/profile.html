@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}{{ profile_user.username }} - Profile - Q&A Platform{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-4">
+            <!-- User Profile Card -->
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <div class="avatar-circle mb-3">
+                        <i class="fas fa-user fa-3x text-primary"></i>
+                    </div>
+                    <h4 class="card-title">{{ profile_user.username }}</h4>
+                    {% if profile_user.badge_level %}
+                    <span class="badge badge-primary">{{ profile_user.badge_level }}</span>
+                    {% endif %}
+                    <p class="text-muted mt-2">Member since {{ stats.joined_date }}</p>
+                </div>
+            </div>
+
+            <!-- User Statistics -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6 mb-3">
+                            <div class="stat-number">{{ stats.questions_asked }}</div>
+                            <div class="stat-label">Questions</div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="stat-number">{{ stats.answers_given }}</div>
+                            <div class="stat-label">Answers</div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="stat-number">{{ stats.accepted_answers }}</div>
+                            <div class="stat-label">Accepted</div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="stat-number">{{ stats.reputation }}</div>
+                            <div class="stat-label">Reputation</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <!-- Recent Questions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-question-circle"></i> Recent Questions</h5>
+                </div>
+                <div class="card-body">
+                    {% if questions %}
+                        {% for question in questions %}
+                        <div class="question-item mb-3 pb-3 border-bottom">
+                            <h6 class="question-title">
+                                <a href="{{ url_for('question_detail', id=question.id) }}" class="text-decoration-none">
+                                    {{ question.title }}
+                                </a>
+                            </h6>
+                            <div class="question-meta text-muted small">
+                                <i class="fas fa-clock"></i> {{ question.created_at.strftime('%b %d, %Y') }} •
+                                <i class="fas fa-comment"></i> {{ question.answers|length }} answers
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">No questions asked yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Answers -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-reply"></i> Recent Answers</h5>
+                </div>
+                <div class="card-body">
+                    {% if answers %}
+                        {% for answer in answers %}
+                        <div class="answer-item mb-3 pb-3 border-bottom">
+                            <p class="answer-content mb-2">{{ answer.content|truncate(200) }}</p>
+                            <div class="answer-meta text-muted small">
+                                <i class="fas fa-clock"></i> {{ answer.created_at.strftime('%b %d, %Y') }} •
+                                <a href="{{ url_for('question_detail', id=answer.question_id) }}" class="text-decoration-none">
+                                    {{ answer.question.title }}
+                                </a>
+                                {% if answer.is_accepted %}
+                                <span class="badge bg-success ms-2">Accepted</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">No answers given yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

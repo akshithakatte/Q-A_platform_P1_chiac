@@ -116,10 +116,10 @@
                             <li><a class="dropdown-item" href="{{ url_for('dashboard') }}">
                                 <i class="fas fa-chart-line"></i> Dashboard
                             </a></li>
-                            <li><a class="dropdown-item" href="#">
+                            <li><a class="dropdown-item" href="{{ url_for('user_profile', username=current_user.username) }}">
                                 <i class="fas fa-user-circle"></i> Profile
                             </a></li>
-                            <li><a class="dropdown-item" href="#">
+                            <li><a class="dropdown-item" href="{{ url_for('settings') }}">
                                 <i class="fas fa-cog"></i> Settings
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
