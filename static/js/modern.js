@@ -185,18 +185,23 @@ class VoteManager {
     async handleVote(button) {
         const itemType = button.dataset.itemType;
         const itemId = button.dataset.itemId;
-        const value = button.dataset.value;
+        let value = button.dataset.value;
         const isUpvote = value === '1';
         
         // Toggle active state
         const sibling = button.parentElement.querySelector(`.vote-btn[data-value="${isUpvote ? '-1' : '1'}"]`);
-        sibling.classList.remove('active');
         
         if (button.classList.contains('active')) {
+            // User is removing their vote
             button.classList.remove('active');
             value = '0'; // Cancel vote
         } else {
+            // User is adding a new vote
             button.classList.add('active');
+            // Remove active from sibling if they're voting opposite
+            if (sibling && sibling.classList.contains('active')) {
+                sibling.classList.remove('active');
+            }
         }
         
         try {
