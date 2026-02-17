@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Notifications - Q&A Platform{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="fas fa-bell"></i> Notifications</h4>
+                    <button class="btn btn-sm btn-outline-primary" onclick="markAllAsRead()">
+                        <i class="fas fa-check-double"></i> Mark All Read
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if notifications %}
+                        <div class="notification-list">
+                            {% for notification in notifications %}
+                                <div class="notification-item {{ 'unread' if not notification.is_read else '' }} p-3 mb-2 border rounded"
+                                     data-id="{{ notification.id }}">
+                                    <div class="d-flex align-items-start">
+                                        <div class="notification-icon me-3">
+                                            {% if notification.notification_type == 'achievement' %}
+                                                <i class="fas fa-trophy text-warning"></i>
+                                            {% elif notification.notification_type == 'success' %}
+                                                <i class="fas fa-check-circle text-success"></i>
+                                            {% elif notification.notification_type == 'warning' %}
+                                                <i class="fas fa-exclamation-triangle text-warning"></i>
+                                            {% elif notification.notification_type == 'error' %}
+                                                <i class="fas fa-times-circle text-danger"></i>
+                                            {% else %}
+                                                <i class="fas fa-info-circle text-info"></i>
+                                            {% endif %}
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="notification-content">
+                                                {{ notification.content }}
+                                            </div>
+                                            <div class="notification-meta text-muted small mt-1">
+                                                {{ notification.created_at.strftime('%b %d, %Y at %I:%M %p') }}
+                                            </div>
+                                        </div>
+                                        <div class="ms-2">
+                                            {% if not notification.is_read %}
+                                                <button class="btn btn-sm btn-outline-secondary"
+                                                        onclick="markAsRead({{ notification.id }})">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if pagination and pagination.pages > 1 %}
+                            <nav aria-label="Notification pagination" class="mt-4">
+                                <ul class="pagination justify-content-center">
+                                    {% if pagination.has_prev %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('notifications', page=pagination.prev_num) }}">
+                                                <i class="fas fa-chevron-left"></i>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+
+                                    {% for page_num in pagination.iter_pages() %}
+                                        {% if page_num %}
+                                            <li class="page-item {{ 'active' if page_num == pagination.page else '' }}">
+                                                <a class="page-link" href="{{ url_for('notifications', page=page_num) }}">
+                                                    {{ page_num }}
+                                                </a>
+                                            </li>
+                                        {% else %}
+                                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    {% if pagination.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('notifications', page=pagination.next_num) }}">
+                                                <i class="fas fa-chevron-right"></i>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-bell-slash fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No notifications yet</h5>
+                            <p class="text-muted">When you receive notifications, they'll appear here.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function markAsRead(notificationId) {
+    fetch(`/api/notifications/${notificationId}/read`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update UI
+            const notificationItem = document.querySelector(`[data-id="${notificationId}"]`);
+            notificationItem.classList.remove('unread');
+            const markReadBtn = notificationItem.querySelector('.btn');
+            if (markReadBtn) {
+                markReadBtn.remove();
+            }
+            updateNotificationBadge();
+        }
+    })
+    .catch(error => console.error('Error marking notification as read:', error));
+}
+
+function markAllAsRead() {
+    fetch('/api/notifications/mark_all_read', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update UI
+            document.querySelectorAll('.notification-item.unread').forEach(item => {
+                item.classList.remove('unread');
+                const markReadBtn = item.querySelector('.btn');
+                if (markReadBtn) {
+                    markReadBtn.remove();
+                }
+            });
+            updateNotificationBadge();
+        }
+    })
+    .catch(error => console.error('Error marking all notifications as read:', error));
+}
+
+function updateNotificationBadge() {
+    // Update the notification badge in the navbar
+    fetch('/api/notifications?limit=1')
+        .then(response => response.json())
+        .then(notifications => {
+            const unreadCount = notifications.filter(n => !n.is_read).length;
+            const badge = document.querySelector('.notification-badge');
+            if (badge) {
+                if (unreadCount > 0) {
+                    badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                    badge.style.display = 'flex';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        })
+        .catch(error => console.error('Error updating notification badge:', error));
+}
+</script>
+
+<style>
+.notification-item {
+    transition: background-color 0.2s ease;
+}
+
+.notification-item.unread {
+    background-color: rgba(59, 130, 246, 0.05);
+    border-left: 3px solid var(--primary-color);
+}
+
+.notification-item:hover {
+    background-color: var(--bg-secondary);
+}
+
+.notification-icon {
+    font-size: 1.2em;
+    margin-top: 0.2em;
+}
+
+.notification-content {
+    line-height: 1.4;
+}
+</style>
+{% endblock %}

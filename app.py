@@ -433,6 +433,17 @@ def post_answer(question_id):
         )
         db.session.add(answer)
         db.session.commit()
+        
+        # Create notification for question author if it's not their own answer
+        if question.author.id != current_user.id:
+            notification = Notification(
+                user_id=question.author.id,
+                content=f"{current_user.username} answered your question: '{question.title[:50]}...'",
+                notification_type='info'
+            )
+            db.session.add(notification)
+            db.session.commit()
+        
         flash('Answer posted successfully!', 'success')
     
     return redirect(url_for('question_detail', id=question_id))
@@ -511,6 +522,16 @@ def accept_answer(answer_id):
     # Accept this answer
     answer.is_accepted = True
     db.session.commit()
+    
+    # Create notification for answer author
+    if answer.author.id != current_user.id:
+        notification = Notification(
+            user_id=answer.author.id,
+            content=f"Your answer to '{question.title[:50]}...' was accepted!",
+            notification_type='success'
+        )
+        db.session.add(notification)
+        db.session.commit()
     
     flash('Answer accepted!', 'success')
     return redirect(url_for('question_detail', id=question.id))
@@ -638,6 +659,51 @@ def delete_account():
 
     return redirect(url_for('settings'))
 
+@app.route('/api/notifications')
+@login_required
+def get_notifications():
+    """API endpoint to get user notifications for badge count"""
+    limit = request.args.get('limit', type=int)
+    notifications = Notification.query.filter_by(user_id=current_user.id)\
+        .order_by(Notification.created_at.desc())
+    
+    if limit:
+        notifications = notifications.limit(limit)
+    
+    notifications = notifications.all()
+    
+    return jsonify([{
+        'id': n.id,
+        'content': n.content,
+        'type': n.notification_type,
+        'is_read': n.is_read,
+        'created_at': n.created_at.isoformat()
+    } for n in notifications])
+
+@app.route('/api/notifications/<int:notification_id>/read', methods=['POST'])
+@login_required
+def mark_notification_read(notification_id):
+    """Mark a specific notification as read"""
+    notification = Notification.query.get_or_404(notification_id)
+    
+    if notification.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    notification.is_read = True
+    db.session.commit()
+    
+    return jsonify({'success': True})
+
+@app.route('/api/notifications/mark_all_read', methods=['POST'])
+@login_required
+def mark_all_notifications_read():
+    """Mark all notifications as read for current user"""
+    Notification.query.filter_by(user_id=current_user.id, is_read=False)\
+        .update({'is_read': True})
+    db.session.commit()
+    
+    return jsonify({'success': True})
+
 @app.route('/dashboard')
 @login_required
 def dashboard():
@@ -677,6 +743,22 @@ def dashboard():
                          recent_answers=recent_answers,
                          user_badges=user_badges,
                          recommended_questions=recommended)
+
+@app.route('/notifications')
+@login_required
+def notifications():
+    """View user notifications page"""
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    # Get paginated notifications for current user
+    pagination = Notification.query.filter_by(user_id=current_user.id)\
+        .order_by(Notification.created_at.desc())\
+        .paginate(page=page, per_page=per_page, error_out=False)
+    
+    return render_template('notifications.html', 
+                         notifications=pagination.items,
+                         pagination=pagination)
 
 if __name__ == '__main__':
     with app.app_context():

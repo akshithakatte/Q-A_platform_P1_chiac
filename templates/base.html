@@ -129,7 +129,7 @@
                         </ul>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link position-relative" href="#">
+                        <a class="nav-link position-relative" href="{{ url_for('notifications') }}">
                             <i class="fas fa-bell"></i>
                             <span class="notification-badge" style="display: none; position: absolute; top: 0; right: 0; background: var(--danger-color); color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 0.7em; display: flex; align-items: center; justify-content: center;">0</span>
                         </a>
@@ -211,7 +211,31 @@
             if (themeToggle) {
                 themeToggle.addEventListener('click', toggleTheme);
             }
+            
+            // Update notification badge if user is logged in
+            {% if current_user.is_authenticated %}
+            updateNotificationBadge();
+            {% endif %}
         });
+
+        // Update notification badge
+        function updateNotificationBadge() {
+            fetch('/api/notifications')
+                .then(response => response.json())
+                .then(notifications => {
+                    const unreadCount = notifications.filter(n => !n.is_read).length;
+                    const badge = document.querySelector('.notification-badge');
+                    if (badge) {
+                        if (unreadCount > 0) {
+                            badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                            badge.style.display = 'flex';
+                        } else {
+                            badge.style.display = 'none';
+                        }
+                    }
+                })
+                .catch(error => console.error('Error updating notification badge:', error));
+        }
 
         function vote(itemType, itemId, value) {
             fetch('/vote', {
