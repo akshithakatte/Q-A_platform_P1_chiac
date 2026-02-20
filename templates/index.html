@@ -87,7 +87,7 @@
                 <div class="d-flex flex-wrap justify-content-center gap-3">
                     {% for topic in trending_topics %}
                     <span class="tag scale-in" style="animation-delay: {{ loop.index * 0.1 }}s">
-                        <i class="fas fa-hashtag"></i> {{ topic }}
+                        <i class="fas fa-hashtag"></i> {{ topic.tag.name }}
                     </span>
                     {% endfor %}
                 </div>
