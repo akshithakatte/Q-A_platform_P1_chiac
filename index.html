@@ -1,0 +1,362 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Q&A Platform{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-12">
+            <!-- Beautiful Hero Header -->
+            <div class="text-center mb-5 fade-in">
+                <div class="mb-4">
+                    <h1 class="display-3 fw-bold mb-3">
+                        <span class="bg-gradient-primary text-white px-4 py-2 rounded-pill">
+                            <i class="fas fa-rocket"></i> Q&A Platform
+                        </span>
+                    </h1>
+                    <p class="lead text-muted mb-0">
+                        Discover amazing questions from our vibrant community of experts and enthusiasts
+                    </p>
+                </div>
+                
+                {% if current_user.is_authenticated %}
+                <div class="mt-4">
+                    <a href="{{ url_for('ask_question') }}" class="btn btn-primary btn-lg me-3 scale-in">
+                        <span><i class="fas fa-plus"></i> Ask Question</span>
+                    </a>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary btn-lg scale-in" style="animation-delay: 0.2s">
+                        <span><i class="fas fa-chart-line"></i> Dashboard</span>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Premium Search Section -->
+            <div class="search-container mb-5 slide-up">
+                <form method="POST" action="{{ url_for('search') }}">
+                    {{ search_form.hidden_tag() }}
+                    <div class="position-relative">
+                        {{ search_form.query(class="form-control search-input", placeholder="🔍 Search questions, explore topics, find answers...") }}
+                        <button type="submit" class="search-btn">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Premium Stats Section -->
+            {% if current_user.is_authenticated %}
+            <div class="row mb-5 fade-in">
+                <div class="col-md-3 mb-4">
+                    <div class="stat-card bounce-in">
+                        <div class="stat-number">{{ current_user.questions|length }}</div>
+                        <div class="stat-label">Questions</div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="stat-card bounce-in" style="animation-delay: 0.1s; background: var(--gradient-success);">
+                        <div class="stat-number">{{ current_user.answers|length }}</div>
+                        <div class="stat-label">Answers</div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="stat-card bounce-in" style="animation-delay: 0.2s; background: var(--gradient-warning);">
+                        <div class="stat-number">{{ current_user.reputation }}</div>
+                        <div class="stat-label">Reputation</div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="stat-card bounce-in" style="animation-delay: 0.3s; background: var(--gradient-danger);">
+                        <div class="stat-number">{{ current_user.badge_level }}</div>
+                        <div class="stat-label">Level</div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Premium Trending Topics -->
+            {% if trending_topics %}
+            <div class="mb-5 fade-in">
+                <div class="text-center mb-4">
+                    <h2 class="fw-bold">
+                        <i class="fas fa-fire text-warning"></i> 
+                        <span class="badge bg-warning text-dark px-4 py-2">Trending Topics</span>
+                    </h2>
+                </div>
+                <div class="d-flex flex-wrap justify-content-center gap-3">
+                    {% for topic in trending_topics %}
+                    <span class="tag scale-in" style="animation-delay: {{ loop.index * 0.1 }}s">
+                        <i class="fas fa-hashtag"></i> {{ topic.tag.name }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Premium Questions Grid -->
+            {% if questions %}
+                <div class="row">
+                    {% for question in questions %}
+                    <div class="col-lg-6 mb-4">
+                        <div class="question-card h-100 fade-in" style="animation-delay: {{ loop.index * 0.1 }}s">
+                            <div class="d-flex">
+                                <!-- Premium Voting Section -->
+                                <div class="vote-buttons">
+                                    <button class="vote-btn" data-item-type="question" data-item-id="{{ question.id }}" data-value="1">
+                                        <i class="fas fa-arrow-up"></i>
+                                    </button>
+                                    <div class="vote-count" id="vote-count-question-{{ question.id }}">
+                                        {{ question.votes | sum(attribute='value') if question.votes else 0 }}
+                                    </div>
+                                    <button class="vote-btn" data-item-type="question" data-item-id="{{ question.id }}" data-value="-1">
+                                        <i class="fas fa-arrow-down"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Premium Content Section -->
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <h3 class="question-title">
+                                            <a href="{{ url_for('question_detail', id=question.id) }}">
+                                                {{ question.title }}
+                                            </a>
+                                        </h3>
+                                        {% if question.is_accepted %}
+                                        <span class="badge bg-success glow-success">
+                                            <i class="fas fa-check-circle"></i> Solved
+                                        </span>
+                                        {% endif %}
+                                    </div>
+
+                                    <p class="question-content">
+                                        {{ question.content|clean_html|truncate(200)|nl2br|safe }}
+                                    </p>
+
+                                    <!-- Premium Tags -->
+                                    <div class="mb-3">
+                                        {% for tag in question.tags %}
+                                        <span class="tag">
+                                            <i class="fas fa-tag"></i> {{ tag.name }}
+                                        </span>
+                                        {% endfor %}
+                                    </div>
+
+                                    <!-- Premium Meta Information -->
+                                    <div class="question-meta">
+                                        <span class="text-primary">
+                                            <i class="fas fa-user-circle"></i> 
+                                            <strong>{{ question.author.username }}</strong>
+                                        </span>
+                                        <span class="text-muted">
+                                            <i class="fas fa-clock"></i> 
+                                            {{ question.created_at.strftime('%b %d, %Y') }}
+                                        </span>
+                                        <span class="text-info">
+                                            <i class="fas fa-comments"></i> 
+                                            {{ question.answers|length }} answers
+                                        </span>
+                                        <span class="text-warning">
+                                            <i class="fas fa-eye"></i> 
+                                            {{ question.views or 0 }} views
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+            <!-- Premium Empty State -->
+            <div class="empty-state fade-in">
+                <div class="mb-4">
+                    <i class="fas fa-inbox fa-5x text-muted"></i>
+                </div>
+                <h3 class="text-muted mb-3">No Questions Yet</h3>
+                <p class="text-muted mb-4">Be the first to ask a question and start the conversation!</p>
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('ask_question') }}" class="btn btn-primary btn-lg">
+                    <span><i class="fas fa-plus"></i> Ask First Question</span>
+                </a>
+                {% else %}
+                <div>
+                    <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg me-3">
+                        <span><i class="fas fa-sign-in-alt"></i> Login</span>
+                    </a>
+                    <a href="{{ url_for('register') }}" class="btn btn-outline-primary btn-lg">
+                        <span><i class="fas fa-user-plus"></i> Register</span>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Floating Elements for Visual Interest -->
+<div class="floating-element" style="top: 10%; left: 5%; animation-delay: 0s;">
+    <i class="fas fa-code fa-3x text-primary"></i>
+</div>
+<div class="floating-element" style="top: 20%; right: 10%; animation-delay: 2s;">
+    <i class="fas fa-database fa-3x text-success"></i>
+</div>
+<div class="floating-element" style="bottom: 20%; left: 8%; animation-delay: 4s;">
+    <i class="fas fa-server fa-3x text-warning"></i>
+</div>
+
+<!-- Premium Custom Styles -->
+<style>
+/* Additional premium enhancements */
+.display-3 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+}
+
+.lead {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 400;
+    font-size: 1.3rem;
+}
+
+.question-card {
+    backdrop-filter: var(--blur-lg);
+    border: 1px solid var(--border-color);
+}
+
+.question-card:hover {
+    border-color: var(--primary-color);
+}
+
+.stat-card {
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    animation: float 8s ease-in-out infinite;
+}
+
+.search-container {
+    position: relative;
+}
+
+.search-container::before {
+    content: '';
+    position: absolute;
+    top: -20px;
+    left: -20px;
+    right: -20px;
+    bottom: -20px;
+    background: var(--gradient-primary);
+    opacity: 0.05;
+    border-radius: 3rem;
+    filter: blur(20px);
+    z-index: -1;
+}
+
+.tag {
+    position: relative;
+    overflow: hidden;
+}
+
+.tag::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: all 0.6s ease;
+}
+
+.tag:hover::before {
+    width: 200px;
+    height: 200px;
+}
+
+.question-meta span {
+    backdrop-filter: var(--blur-sm);
+}
+
+.question-meta span:hover {
+    backdrop-filter: var(--blur-md);
+}
+
+/* Premium badge effects */
+.badge {
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+/* Premium button hover effects */
+.btn-lg {
+    font-size: 1.1rem;
+    padding: 1rem 2rem;
+}
+
+/* Premium search input enhancements */
+.search-input::placeholder {
+    color: var(--text-tertiary);
+    font-weight: 500;
+}
+
+/* Premium card hover effects */
+.question-card:hover .question-title a {
+    color: var(--primary-color);
+}
+
+/* Premium meta information styling */
+.question-meta i {
+    font-size: 1.1rem;
+}
+
+/* Premium empty state enhancements */
+.empty-state {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+    border: 2px solid var(--border-color);
+}
+
+.empty-state i {
+    animation: float 3s ease-in-out infinite;
+}
+
+/* Premium responsive adjustments */
+@media (max-width: 768px) {
+    .display-3 {
+        font-size: 2.5rem;
+    }
+    
+    .lead {
+        font-size: 1.1rem;
+    }
+    
+    .search-input {
+        font-size: 1rem;
+        padding: 1rem 3.5rem 1rem 1.5rem;
+    }
+    
+    .question-meta {
+        gap: 1rem;
+    }
+    
+    .question-meta span {
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+    }
+}
+</style>
+{% endblock %}

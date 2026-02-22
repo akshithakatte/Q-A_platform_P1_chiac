@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Search Results - Q&A Platform{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-3">
+        <!-- Search Filters -->
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-filter"></i> Filters</h5>
+            </div>
+            <div class="card-body">
+                <form id="filter-form">
+                    <div class="mb-3">
+                        <label class="form-label">Sort by</label>
+                        <select class="form-select" id="sort-by">
+                            <option value="relevance">Relevance</option>
+                            <option value="newest">Newest</option>
+                            <option value="oldest">Oldest</option>
+                            <option value="votes">Most Votes</option>
+                            <option value="answers">Most Answers</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Time Period</label>
+                        <select class="form-select" id="time-period">
+                            <option value="all">All Time</option>
+                            <option value="today">Today</option>
+                            <option value="week">This Week</option>
+                            <option value="month">This Month</option>
+                            <option value="year">This Year</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Answer Status</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="has-answers">
+                            <label class="form-check-label" for="has-answers">
+                                Has answers
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="accepted">
+                            <label class="form-check-label" for="accepted">
+                                Has accepted answer
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="no-answers">
+                            <label class="form-check-label" for="no-answers">
+                                No answers
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Min Votes</label>
+                        <input type="number" class="form-control" id="min-votes" min="0" placeholder="0">
+                    </div>
+                    
+                    <button type="button" class="btn btn-primary w-100" onclick="applyFilters()">
+                        <i class="fas fa-filter"></i> Apply Filters
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary w-100 mt-2" onclick="clearFilters()">
+                        <i class="fas fa-times"></i> Clear Filters
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-9">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-search"></i> Search Results</h1>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Home
+            </a>
+        </div>
+
+        <!-- Search Form -->
+        <form method="POST" action="{{ url_for('search') }}" class="mb-4">
+            {{ form.hidden_tag() }}
+            <div class="input-group">
+                {{ form.query(class="form-control", value=query, placeholder="Search questions...") }}
+                <button type="submit" class="btn btn-outline-primary">
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </div>
+        </form>
+
+        {% if query %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> Found {{ questions|length }} result{{ 's' if questions|length != 1 else '' }} for "{{ query }}"
+            {% if search_time %}({{ search_time }}ms){% endif %}
+        </div>
+        {% endif %}
+
+        {% if questions %}
+            {% for question in questions %}
+            <div class="card question-card mb-3">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-1 text-center">
+                            <div class="d-flex flex-column align-items-center">
+                                {% if current_user.is_authenticated %}
+                                <button type="button" class="vote-button mb-1" 
+                                        onclick="vote('question', {{ question.id }}, 1)"
+                                        id="upvote-question-{{ question.id }}">
+                                    <i class="fas fa-chevron-up"></i>
+                                </button>
+                                {% endif %}
+                                <div class="vote-count" id="vote-count-question-{{ question.id }}">
+                                    {{ question.votes|map(attribute='value')|list|sum if question.votes else 0 }}
+                                </div>
+                                {% if current_user.is_authenticated %}
+                                <button type="button" class="vote-button mt-1" 
+                                        onclick="vote('question', {{ question.id }}, -1)"
+                                        id="downvote-question-{{ question.id }}">
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-11">
+                            <h4>
+                                <a href="{{ url_for('question_detail', id=question.id) }}" 
+                                   class="text-decoration-none">
+                                    {{ question.title }}
+                                    {% if question.answers|selectattr('is_accepted')|list %}
+                                    <span class="badge bg-success ms-2">✓ Accepted</span>
+                                    {% endif %}
+                                </a>
+                            </h4>
+                            <p class="text-muted mb-2">
+                                {{ question.content|clean_html|truncate(200)|nl2br|safe }}
+                            </p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    {% for tag in question.tags %}
+                                    <span class="tag">{{ tag.name }}</span>
+                                    {% endfor %}
+                                </div>
+                                <div class="stats">
+                                    <i class="fas fa-user"></i> {{ question.author.username }} • 
+                                    <i class="fas fa-clock"></i> {{ question.created_at.strftime('%b %d, %Y') }} • 
+                                    <i class="fas fa-comment"></i> {{ question.answers|length }} answers
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            {% if query %}
+            <div class="text-center py-5">
+                <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                <h3>No results found</h3>
+                <p class="text-muted">Try searching with different keywords or browse all questions.</p>
+                <a href="{{ url_for('index') }}" class="btn btn-primary">Browse All Questions</a>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                <h3>Search for Questions</h3>
+                <p class="text-muted">Enter keywords or tags to find questions.</p>
+            </div>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function applyFilters() {
+    const sortBy = document.getElementById('sort-by').value;
+    const timePeriod = document.getElementById('time-period').value;
+    const hasAnswers = document.getElementById('has-answers').checked;
+    const hasAccepted = document.getElementById('accepted').checked;
+    const noAnswers = document.getElementById('no-answers').checked;
+    const minVotes = document.getElementById('min-votes').value;
+    
+    // Build query string
+    let params = new URLSearchParams(window.location.search);
+    params.set('sort', sortBy);
+    params.set('time', timePeriod);
+    if (hasAnswers) params.set('has_answers', 'true');
+    if (hasAccepted) params.set('accepted', 'true');
+    if (noAnswers) params.set('no_answers', 'true');
+    if (minVotes) params.set('min_votes', minVotes);
+    
+    // Redirect with filters
+    window.location.href = window.location.pathname + '?' + params.toString();
+}
+
+function clearFilters() {
+    // Reset all filters
+    document.getElementById('sort-by').value = 'relevance';
+    document.getElementById('time-period').value = 'all';
+    document.getElementById('has-answers').checked = false;
+    document.getElementById('accepted').checked = false;
+    document.getElementById('no-answers').checked = false;
+    document.getElementById('min-votes').value = '';
+    
+    // Redirect without filters
+    window.location.href = window.location.pathname;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}{{ question.title }} - Q&A Platform{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <!-- Question -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2>{{ question.title }}</h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-1 text-center">
+                        <div class="d-flex flex-column align-items-center">
+                            {% if current_user.is_authenticated %}
+                            <button type="button" class="vote-button mb-1" 
+                                    onclick="vote('question', {{ question.id }}, 1)"
+                                    id="upvote-question-{{ question.id }}">
+                                <i class="fas fa-chevron-up"></i>
+                            </button>
+                            {% endif %}
+                            <div class="vote-count" id="vote-count-question-{{ question.id }}">
+                                {{ question_votes }}
+                            </div>
+                            {% if current_user.is_authenticated %}
+                            <button type="button" class="vote-button mt-1" 
+                                    onclick="vote('question', {{ question.id }}, -1)"
+                                    id="downvote-question-{{ question.id }}">
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-11">
+                        <div class="question-content">
+                            {{ question.content|clean_html|nl2br|safe }}
+                        </div>
+                        <div class="mt-3">
+                            {% for tag in question.tags %}
+                            <span class="tag">{{ tag.name }}</span>
+                            {% endfor %}
+                        </div>
+                        <div class="mt-3 text-muted stats">
+                            <a href="{{ url_for('user_profile', username=question.author.username) }}" class="text-decoration-none">
+                                <i class="fas fa-user"></i> {{ question.author.username }}
+                            </a> • 
+                            <i class="fas fa-clock"></i> {{ question.created_at.strftime('%b %d, %Y at %I:%M %p') }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Answers -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>{{ question.answers|length }} Answer{{ 's' if question.answers|length != 1 else '' }}</h4>
+            </div>
+            <div class="card-body">
+                {% if answers_with_votes %}
+                    {% for answer, vote_count in answers_with_votes %}
+                    <div class="answer-item {% if answer.is_accepted %}accepted-answer{% endif %} mb-4 pb-4 {% if not loop.last %}border-bottom{% endif %}">
+                        <div class="row">
+                            <div class="col-md-1 text-center">
+                                <div class="d-flex flex-column align-items-center">
+                                    {% if current_user.is_authenticated %}
+                                    <button type="button" class="vote-button mb-1" 
+                                            onclick="vote('answer', {{ answer.id }}, 1)"
+                                            id="upvote-answer-{{ answer.id }}">
+                                        <i class="fas fa-chevron-up"></i>
+                                    </button>
+                                    {% endif %}
+                                    <div class="vote-count" id="vote-count-answer-{{ answer.id }}">
+                                        {{ vote_count }}
+                                    </div>
+                                    {% if current_user.is_authenticated %}
+                                    <button type="button" class="vote-button mt-1" 
+                                            onclick="vote('answer', {{ answer.id }}, -1)"
+                                            id="downvote-answer-{{ answer.id }}">
+                                        <i class="fas fa-chevron-down"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-11">
+                                {% if answer.is_accepted %}
+                                <div class="mb-2">
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check"></i> Accepted Answer
+                                    </span>
+                                </div>
+                                {% endif %}
+                                <div class="answer-content">
+                                    {{ answer.content|clean_html|nl2br|safe }}
+                                </div>
+                                <div class="mt-3 text-muted stats">
+                                    <a href="{{ url_for('user_profile', username=answer.author.username) }}" class="text-decoration-none">
+                                        <i class="fas fa-user"></i> {{ answer.author.username }}
+                                    </a> • 
+                                    <i class="fas fa-clock"></i> {{ answer.created_at.strftime('%b %d, %Y at %I:%M %p') }}
+                                    {% if current_user.is_authenticated and question.user_id == current_user.id and not answer.is_accepted %}
+                                    <form method="POST" action="{{ url_for('accept_answer', answer_id=answer.id) }}" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-success ms-2">
+                                            <i class="fas fa-check"></i> Accept Answer
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="text-center py-4">
+                    <p class="text-muted">No answers yet. Be the first to answer!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Post Answer Form -->
+        {% if current_user.is_authenticated %}
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-reply"></i> Your Answer</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('post_answer', question_id=question.id) }}">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.content(class="form-control", rows="6") }}
+                        {% if form.content.errors %}
+                            <div class="text-danger">
+                                {% for error in form.content.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="card-body text-center">
+                <p class="mb-0">You need to <a href="{{ url_for('login') }}">login</a> to post an answer.</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

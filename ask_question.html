@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Ask Question - Q&A Platform{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-plus"></i> Ask a Question</h3>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.title.label(class="form-label") }}
+                        {{ form.title(class="form-control") }}
+                        {% if form.title.errors %}
+                            <div class="text-danger">
+                                {% for error in form.title.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.content.label(class="form-label") }}
+                        <div id="editor" style="height: 200px;"></div>
+                        {{ form.content(class="d-none") }}
+                        {% if form.content.errors %}
+                            <div class="text-danger">
+                                {% for error in form.content.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.tags.label(class="form-label") }}
+                        {{ form.tags(class="form-control", placeholder="python, flask, database") }}
+                        <small class="text-muted">Separate tags with commas</small>
+                        <div id="tag-suggestions" class="mt-2"></div>
+                        {% if form.tags.errors %}
+                            <div class="text-danger">
+                                {% for error in form.tags.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Cancel
+                        </a>
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Initialize Quill editor
+var quill = new Quill('#editor', {
+    theme: 'snow',
+    placeholder: 'Write your question here...',
+    modules: {
+        toolbar: [
+            ['bold', 'italic', 'underline', 'strike'],
+            ['blockquote', 'code-block'],
+            [{ 'header': 1 }, { 'header': 2 }],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            [{ 'script': 'sub'}, { 'script': 'super' }],
+            [{ 'indent': '-1'}, { 'indent': '+1' }],
+            ['link', 'image'],
+            ['clean']
+        ]
+    }
+});
+
+// Sync Quill content with hidden form field
+quill.on('text-change', function(delta, oldDelta, source) {
+    // Clean up the HTML content before storing
+    let content = quill.root.innerHTML;
+    // Remove unnecessary span styles and clean up
+    content = content.replace(/<span[^>]*style="[^"]*"[^>]*>(.*?)<\/span>/g, '$1');
+    content = content.replace(/<p[^>]*style="[^"]*"[^>]*>/g, '<p>');
+    content = content.replace(/style="[^"]*"/g, '');
+    document.getElementById('content').value = content;
+});
+
+// AI Tag Suggestions
+document.getElementById('title').addEventListener('input', function() {
+    const title = this.value;
+    const content = quill.getText();
+    
+    if (title.length > 3) {
+        fetch(`/api/suggest_tags?title=${encodeURIComponent(title)}&content=${encodeURIComponent(content)}`)
+            .then(response => response.json())
+            .then(tags => {
+                const suggestionsDiv = document.getElementById('tag-suggestions');
+                suggestionsDiv.innerHTML = '';
+                
+                tags.forEach(tag => {
+                    const tagBtn = document.createElement('button');
+                    tagBtn.type = 'button';
+                    tagBtn.className = 'btn btn-sm btn-outline-primary me-1 mb-1';
+                    tagBtn.textContent = tag.name;
+                    tagBtn.onclick = function() {
+                        const currentTags = document.getElementById('tags').value;
+                        const tagsArray = currentTags ? currentTags.split(',').map(t => t.trim()) : [];
+                        if (!tagsArray.includes(tag.name)) {
+                            tagsArray.push(tag.name);
+                            document.getElementById('tags').value = tagsArray.join(', ');
+                        }
+                    };
+                    suggestionsDiv.appendChild(tagBtn);
+                });
+            });
+    }
+});
+</script>
+{% endblock %}
