@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+
+{% block title %}Notifications - Q&A Platform{% endblock %}
+
+{% block content %}
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  body { background: #f4f6fb; font-family: 'DM Sans', sans-serif; }
+
+  .notif-hero {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+    padding: 40px 0 30px;
+    position: relative;
+    overflow: hidden;
+  }
+  .notif-hero::before {
+    content: '';
+    position: absolute;
+    top: -50px; right: -60px;
+    width: 260px; height: 260px;
+    border-radius: 50%;
+    background: #e63946;
+    opacity: 0.06;
+  }
+  .notif-hero-title {
+    font-family: 'DM Serif Display', serif;
+    color: #fff;
+    font-size: 1.9rem;
+    margin-bottom: 4px;
+  }
+  .notif-hero-sub { color: #8888aa; font-size: 0.88rem; }
+
+  .mark-all-btn {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.25);
+    color: #ccc;
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-size: 0.85rem;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .mark-all-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+  .filter-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 20px 0 16px;
+    overflow-x: auto;
+    border-bottom: 1px solid #e8eaf0;
+    margin-bottom: 20px;
+  }
+  .ftab {
+    padding: 7px 18px;
+    border-radius: 20px;
+    border: 1px solid #e0e2ef;
+    background: #fff;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #666;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    text-decoration: none;
+  }
+  .ftab:hover, .ftab.active {
+    background: #1a1a2e;
+    border-color: #1a1a2e;
+    color: #fff;
+    text-decoration: none;
+  }
+
+  .ncard {
+    background: #fff;
+    border: 1px solid #e8eaf0;
+    border-left: 4px solid #e8eaf0;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    cursor: pointer;
+    transition: box-shadow 0.2s, transform 0.15s;
+    position: relative;
+  }
+  .ncard:hover { box-shadow: 0 6px 24px rgba(26,26,46,0.1); transform: translateX(4px); }
+  .ncard.unread { background: #fafafe; border-left-color: #e63946; }
+  .ncard.type-success     { border-left-color: #00b894; }
+  .ncard.type-achievement { border-left-color: #9b59b6; }
+  .ncard.type-info        { border-left-color: #3d4cad; }
+  .ncard.type-warning     { border-left-color: #f39c12; }
+
+  .nicon {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+  .nicon.type-success     { background: rgba(0,184,148,0.12); }
+  .nicon.type-achievement { background: rgba(155,89,182,0.12); }
+  .nicon.type-info        { background: rgba(61,76,173,0.1); }
+  .nicon.type-warning     { background: rgba(243,156,18,0.12); }
+
+  .nbody { flex: 1; min-width: 0; }
+  .ncontent { font-size: 0.93rem; color: #1a1a2e; line-height: 1.5; margin-bottom: 4px; }
+  .ncard.unread .ncontent { font-weight: 600; }
+  .ntime { font-size: 0.76rem; color: #aaa; }
+
+  .unread-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #e63946;
+    flex-shrink: 0;
+    margin-top: 6px;
+  }
+  .ncard:not(.unread) .unread-dot { display: none; }
+
+  .mark-btn {
+    background: transparent;
+    border: 1px solid #e0e2ef;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    color: #888;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .mark-btn:hover { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
+
+  .empty-notif { text-align: center; padding: 80px 20px; color: #aaa; }
+  .empty-notif .eicon { font-size: 3.5rem; opacity: 0.3; margin-bottom: 16px; }
+  .empty-notif h4 {
+    font-family: 'DM Serif Display', serif;
+    color: #1a1a2e; font-size: 1.4rem; margin-bottom: 8px;
+  }
+
+  .custom-pagination { display: flex; justify-content: center; gap: 8px; padding: 24px 0; }
+  .ppage {
+    padding: 8px 16px; border-radius: 8px;
+    border: 1px solid #e0e2ef; background: #fff;
+    font-size: 0.85rem; font-weight: 600; color: #666;
+    text-decoration: none; transition: all 0.15s;
+  }
+  .ppage:hover { background: #1a1a2e; color: #fff; border-color: #1a1a2e; text-decoration: none; }
+  .ppage.active { background: #e63946; color: #fff; border-color: #e63946; }
+</style>
+
+<div class="notif-hero">
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+      <div>
+        <h1 class="notif-hero-title"><i class="fas fa-bell me-2"></i>Notifications</h1>
+        <p class="notif-hero-sub">Stay up to date with your activity</p>
+      </div>
+      <button id="markAllBtn" class="mark-all-btn" type="button">
+        <i class="fas fa-check-double me-1"></i> Mark all as read
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="container" style="padding-bottom: 48px;">
+  <div class="filter-tabs">
+    <a href="#" class="ftab js-filter-tab active" data-filter="all">All</a>
+    <a href="#" class="ftab js-filter-tab" data-filter="unread">Unread</a>
+    <a href="#" class="ftab js-filter-tab" data-filter="achievement">Achievements</a>
+    <a href="#" class="ftab js-filter-tab" data-filter="success">Accepted</a>
+    <a href="#" class="ftab js-filter-tab" data-filter="info">Answers</a>
+  </div>
+
+  {% if notifications %}
+  <div id="notifList">
+    {% for n in notifications %}
+      {% if n.notification_type == 'achievement' %}{% set ico = 'fas fa-trophy' %}
+      {% elif n.notification_type == 'success' %}{% set ico = 'fas fa-circle-check' %}
+      {% elif n.notification_type == 'warning' %}{% set ico = 'fas fa-triangle-exclamation' %}
+      {% else %}{% set ico = 'fas fa-comment-dots' %}{% endif %}
+
+      <div class="ncard js-mark-read-card {% if not n.is_read %}unread{% endif %} type-{{ n.notification_type }}"
+           data-id="{{ n.id }}"
+           data-type="{{ n.notification_type }}"
+           data-read="{{ 'true' if n.is_read else 'false' }}">
+        <div class="nicon type-{{ n.notification_type }}"><i class="{{ ico }}"></i></div>
+        <div class="nbody">
+          <div class="ncontent">{{ n.content }}</div>
+          <div class="ntime"><i class="far fa-clock me-1"></i>{{ n.created_at.strftime('%b %d, %Y at %I:%M %p') }}</div>
+        </div>
+        {% if not n.is_read %}
+        <button class="mark-btn js-mark-read-btn" type="button">
+          <i class="fas fa-check me-1"></i>Read
+        </button>
+        {% endif %}
+        <div class="unread-dot"></div>
+      </div>
+    {% endfor %}
+  </div>
+
+  {% if pagination and pagination.pages > 1 %}
+  <div class="custom-pagination">
+    {% if pagination.has_prev %}
+      <a href="{{ url_for('notifications', page=pagination.prev_num) }}" class="ppage">
+        <i class="fas fa-chevron-left me-1"></i>Prev
+      </a>
+    {% endif %}
+    {% for p in pagination.iter_pages() %}
+      {% if p %}
+        <a href="{{ url_for('notifications', page=p) }}" class="ppage {% if p == pagination.page %}active{% endif %}">{{ p }}</a>
+      {% else %}
+        <span class="ppage" style="cursor:default;">...</span>
+      {% endif %}
+    {% endfor %}
+    {% if pagination.has_next %}
+      <a href="{{ url_for('notifications', page=pagination.next_num) }}" class="ppage">
+        Next <i class="fas fa-chevron-right ms-1"></i>
+      </a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-notif">
+    <div class="eicon"><i class="fas fa-bell-slash"></i></div>
+    <h4>You're all caught up!</h4>
+    <p>No notifications yet. Ask or answer questions to get started.</p>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function csrfToken() {
+  const token = document.querySelector('meta[name="csrf-token"]');
+  return token ? token.getAttribute('content') : '';
+}
+
+function markAsRead(id, el) {
+  if (!el || el.dataset.read === 'true') return;
+  fetch(`/api/notifications/${id}/read`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrfToken()
+    }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      el.classList.remove('unread');
+      el.dataset.read = 'true';
+      const btn = el.querySelector('.mark-btn');
+      if (btn) btn.remove();
+      const dot = el.querySelector('.unread-dot');
+      if (dot) dot.style.display = 'none';
+      updateBadge(-1);
+    }
+  });
+}
+
+function markAllAsRead() {
+  fetch('/api/notifications/mark_all_read', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrfToken()
+    }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      document.querySelectorAll('.ncard.unread').forEach(el => {
+        el.classList.remove('unread');
+        el.dataset.read = 'true';
+        const btn = el.querySelector('.mark-btn');
+        if (btn) btn.remove();
+        const dot = el.querySelector('.unread-dot');
+        if (dot) dot.style.display = 'none';
+      });
+      const badge = document.querySelector('.notification-badge');
+      if (badge) badge.style.display = 'none';
+    }
+  });
+}
+
+function filterTab(e, filter) {
+  e.preventDefault();
+  const tab = e.currentTarget || e.target;
+  document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+
+  document.querySelectorAll('.ncard').forEach(card => {
+    if (filter === 'all') {
+      card.style.display = '';
+    } else if (filter === 'unread') {
+      card.style.display = card.dataset.read === 'false' ? '' : 'none';
+    } else {
+      card.style.display = card.dataset.type === filter ? '' : 'none';
+    }
+  });
+}
+
+function updateBadge(delta) {
+  const badge = document.querySelector('.notification-badge');
+  if (badge) {
+    const cur = parseInt(badge.textContent || '0', 10) + delta;
+    badge.textContent = Math.max(cur, 0);
+    if (cur <= 0) badge.style.display = 'none';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const markAllBtn = document.getElementById('markAllBtn');
+  if (markAllBtn) {
+    markAllBtn.addEventListener('click', markAllAsRead);
+  }
+
+  document.querySelectorAll('.js-filter-tab').forEach(tab => {
+    tab.addEventListener('click', e => filterTab(e, tab.dataset.filter));
+  });
+
+  document.querySelectorAll('.js-mark-read-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const id = Number(card.dataset.id);
+      if (id) markAsRead(id, card);
+    });
+  });
+
+  document.querySelectorAll('.js-mark-read-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const card = btn.closest('.ncard');
+      if (!card) return;
+      const id = Number(card.dataset.id);
+      if (id) markAsRead(id, card);
+    });
+  });
+});
+</script>
+{% endblock %}

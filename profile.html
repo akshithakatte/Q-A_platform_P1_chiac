@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+
+{% block title %}{{ profile_user.username }} - Profile - Q&A Platform{% endblock %}
+
+{% block content %}
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  .profile-hero {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+    padding: 50px 0 70px;
+    position: relative;
+    overflow: hidden;
+  }
+  .profile-hero::after {
+    content: '';
+    position: absolute;
+    bottom: -2px; left: 0; right: 0;
+    height: 50px;
+    background: #f4f6fb;
+    border-radius: 50px 50px 0 0;
+  }
+  .profile-hero::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 320px; height: 320px;
+    border-radius: 50%;
+    background: #e63946;
+    opacity: 0.06;
+  }
+
+  .avatar-big {
+    width: 96px; height: 96px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e63946, #ff6b7a);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.6rem;
+    font-weight: 700;
+    color: #fff;
+    border: 4px solid rgba(255,255,255,0.15);
+    box-shadow: 0 8px 32px rgba(230,57,70,0.35);
+    flex-shrink: 0;
+    font-family: 'DM Serif Display', serif;
+  }
+
+  .profile-name {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2rem;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  .profile-since { color: #8888aa; font-size: 0.88rem; }
+
+  .level-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 16px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .level-Expert       { background:#fff3cd; color:#856404; }
+  .level-Advanced     { background:#d1ecf1; color:#0c5460; }
+  .level-Intermediate { background:#d4edda; color:#155724; }
+  .level-Apprentice   { background:#e2d9f3; color:#491d8b; }
+  .level-Beginner     { background:#f8f9fa; color:#6c757d; }
+
+  body { background: #f4f6fb; font-family: 'DM Sans', sans-serif; }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat-box {
+    background: #fff;
+    border: 1px solid #e8eaf0;
+    border-radius: 14px;
+    padding: 18px 12px;
+    text-align: center;
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+  .stat-box:hover { box-shadow: 0 6px 24px rgba(26,26,46,0.1); transform: translateY(-2px); }
+  .stat-box .num {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.9rem;
+    line-height: 1;
+    display: block;
+  }
+  .stat-box .lbl { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: #888; margin-top: 4px; display: block; }
+  .num-red   { color: #e63946; }
+  .num-green { color: #00b894; }
+  .num-blue  { color: #3d4cad; }
+  .num-gold  { color: #f39c12; }
+
+  .rep-card {
+    background: #fff;
+    border: 1px solid #e8eaf0;
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 20px;
+  }
+  .rep-bar-bg { background: #eee; border-radius: 6px; height: 8px; overflow: hidden; margin: 8px 0 6px; }
+  .rep-bar-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, #e63946, #ff7b8a); transition: width 1.2s ease; }
+  .rep-label { font-size: 0.78rem; color: #888; }
+
+  .section-head {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.2rem;
+    color: #1a1a2e;
+    border-bottom: 2px solid #e8eaf0;
+    padding-bottom: 10px;
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-head .count { font-family: 'DM Sans', sans-serif; font-size: 0.78rem; color: #bbb; font-weight: 400; margin-left: auto; }
+
+  .activity-card {
+    background: #fff;
+    border: 1px solid #e8eaf0;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 10px;
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    transition: box-shadow 0.2s, transform 0.15s, border-color 0.15s;
+  }
+  .activity-card:hover {
+    box-shadow: 0 6px 24px rgba(26,26,46,0.1);
+    transform: translateX(4px);
+    border-color: #c8cadf;
+    text-decoration: none;
+    color: inherit;
+  }
+  .activity-title { font-weight: 600; font-size: 0.95rem; color: #1a1a2e; margin-bottom: 5px; }
+  .activity-meta { font-size: 0.78rem; color: #999; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .accepted-pill { background: #00b894; color: #fff; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 700; }
+  .vote-pill { background: #eef0ff; color: #3d4cad; font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; font-weight: 700; }
+
+  .badges-wrap { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+  .badge-card {
+    background: #fff;
+    border: 1px solid #e8eaf0;
+    border-radius: 12px;
+    padding: 14px 10px;
+    text-align: center;
+    transition: box-shadow 0.2s;
+  }
+  .badge-card:hover { box-shadow: 0 4px 16px rgba(26,26,46,0.1); }
+  .badge-card .icon { font-size: 1.8rem; margin-bottom: 6px; }
+  .badge-card .bname { font-weight: 700; font-size: 0.8rem; color: #1a1a2e; }
+  .badge-card .bdesc { font-size: 0.7rem; color: #999; margin-top: 2px; }
+
+  .empty-msg { text-align: center; padding: 24px; color: #bbb; font-size: 0.9rem; }
+
+  .own-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+  .btn-primary-custom {
+    background: #e63946; color: #fff; border: none;
+    border-radius: 10px; padding: 10px 22px;
+    font-weight: 600; font-family: 'DM Sans', sans-serif;
+    text-decoration: none; display: inline-block;
+    transition: opacity 0.2s;
+  }
+  .btn-primary-custom:hover { opacity: 0.85; color: #fff; text-decoration: none; }
+  .btn-outline-custom {
+    background: transparent; color: #1a1a2e;
+    border: 1px solid #ddd; border-radius: 10px;
+    padding: 10px 22px; font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    text-decoration: none; display: inline-block;
+    transition: all 0.2s;
+  }
+  .btn-outline-custom:hover { background: #1a1a2e; color: #fff; text-decoration: none; }
+
+  @media(max-width:768px) {
+    .profile-name { font-size: 1.4rem; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+
+<!-- Hero -->
+<div class="profile-hero">
+  <div class="container">
+    <div class="d-flex align-items-center gap-4 flex-wrap">
+      <div class="avatar-big">{{ profile_user.username[0].upper() }}</div>
+      <div>
+        <h1 class="profile-name">{{ profile_user.username }}</h1>
+        <p class="profile-since mb-2">
+          <i class="fas fa-calendar-alt me-1"></i> Member since {{ stats.joined_date }}
+          {% if stats.profile_views %} &nbsp;·&nbsp; <i class="fas fa-eye me-1"></i>{{ stats.profile_views }} views{% endif %}
+        </p>
+        <span class="level-badge level-{{ stats.badge_level }}">
+          {% if stats.badge_level == 'Expert' %}👑
+          {% elif stats.badge_level == 'Advanced' %}⚡
+          {% elif stats.badge_level == 'Intermediate' %}🌟
+          {% elif stats.badge_level == 'Apprentice' %}🌱
+          {% else %}🔰{% endif %}
+          {{ stats.badge_level }}
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="container" style="padding-top: 8px; padding-bottom: 48px;">
+  <div class="row g-4">
+
+    <!-- Left -->
+    <div class="col-lg-4">
+
+      <!-- Stats -->
+      <div class="stat-grid mt-3">
+        <div class="stat-box">
+          <span class="num num-red">{{ stats.reputation }}</span>
+          <span class="lbl">Reputation</span>
+        </div>
+        <div class="stat-box">
+          <span class="num num-blue">{{ stats.questions_asked }}</span>
+          <span class="lbl">Questions</span>
+        </div>
+        <div class="stat-box">
+          <span class="num num-gold">{{ stats.answers_given }}</span>
+          <span class="lbl">Answers</span>
+        </div>
+        <div class="stat-box">
+          <span class="num num-green">{{ stats.accepted_answers }}</span>
+          <span class="lbl">Accepted</span>
+        </div>
+      </div>
+
+      <!-- Reputation Progress -->
+      {% set rep = stats.reputation %}
+      {% if rep < 50 %}{% set nl="Apprentice" %}{% set nr=50 %}{% set pr=1 %}
+      {% elif rep < 100 %}{% set nl="Intermediate" %}{% set nr=100 %}{% set pr=50 %}
+      {% elif rep < 500 %}{% set nl="Advanced" %}{% set nr=500 %}{% set pr=100 %}
+      {% elif rep < 1000 %}{% set nl="Expert" %}{% set nr=1000 %}{% set pr=500 %}
+      {% else %}{% set nl="Max" %}{% set nr=rep %}{% set pr=1000 %}{% endif %}
+
+      <div class="rep-card">
+        {% if nl != "Max" %}
+          <div class="d-flex justify-content-between">
+            <span style="font-size:0.82rem;color:#555;">Progress to <strong>{{ nl }}</strong></span>
+            <span style="font-size:0.82rem;font-weight:700;">{{ rep }}/{{ nr }}</span>
+          </div>
+          <div class="rep-bar-bg">
+            {% set pct = ((rep - pr) / (nr - pr) * 100) | round | int %}
+            {% if pct > 100 %}{% set pct = 100 %}{% endif %}
+          <div class="rep-bar-fill" style="width:{{ pct }}%"></div>
+          </div>
+          <div class="rep-label">{{ nr - rep }} points to go</div>
+        {% else %}
+          <div style="text-align:center;">
+            <span style="font-size:1.6rem;">👑</span>
+            <div style="font-weight:700;font-size:0.9rem;margin-top:4px;color:#1a1a2e;">Maximum Level!</div>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Badges -->
+      <div class="section-head"><span>🏆</span> Badges</div>
+      {% if profile_user.badges %}
+        <div class="badges-wrap">
+          {% for ub in profile_user.badges %}
+          <div class="badge-card">
+            <div class="icon">{{ ub.badge.icon }}</div>
+            <div class="bname">{{ ub.badge.name }}</div>
+            <div class="bdesc">{{ ub.badge.description }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-msg">No badges yet — keep going!</div>
+      {% endif %}
+
+    </div>
+
+    <!-- Right -->
+    <div class="col-lg-8">
+
+      <!-- Questions -->
+      <div class="section-head mt-3">
+        <span>❓</span> Questions Asked
+        <span class="count">{{ stats.questions_asked }} total</span>
+      </div>
+
+      {% if questions %}
+        {% for q in questions %}
+        <a href="{{ url_for('question_detail', id=q.id) }}" class="activity-card">
+          <div class="activity-title">{{ q.title }}</div>
+          <div class="activity-meta">
+            <span><i class="fas fa-comments me-1"></i>{{ q.answers|length }} answers</span>
+            <span class="vote-pill">{{ q.votes|sum(attribute='value') if q.votes else 0 }} votes</span>
+            <span style="margin-left:auto;">{{ q.created_at.strftime('%b %d, %Y') }}</span>
+          </div>
+        </a>
+        {% endfor %}
+      {% else %}
+        <div class="empty-msg">No questions asked yet.</div>
+      {% endif %}
+
+      <!-- Answers -->
+      <div class="section-head mt-4">
+        <span>💬</span> Answers Given
+        <span class="count">{{ stats.answers_given }} total</span>
+      </div>
+
+      {% if answers %}
+        {% for a in answers %}
+        <a href="{{ url_for('question_detail', id=a.question_id) }}" class="activity-card">
+          <div class="activity-title d-flex align-items-center gap-2 flex-wrap">
+            Re: {{ a.question.title }}
+            {% if a.is_accepted %}<span class="accepted-pill">✓ Accepted</span>{% endif %}
+          </div>
+          <div class="activity-meta">
+            <span>{{ a.content | striptags | truncate(80) }}</span>
+            <span class="vote-pill" style="margin-left:auto;">{{ a.votes|sum(attribute='value') if a.votes else 0 }} votes</span>
+            <span>{{ a.created_at.strftime('%b %d, %Y') }}</span>
+          </div>
+        </a>
+        {% endfor %}
+      {% else %}
+        <div class="empty-msg">No answers given yet.</div>
+      {% endif %}
+
+      {% if current_user.is_authenticated and current_user.username == profile_user.username %}
+      <div class="own-actions">
+        <a href="{{ url_for('ask_question') }}" class="btn-primary-custom">
+          <i class="fas fa-plus me-2"></i>Ask a Question
+        </a>
+        <a href="{{ url_for('settings') }}" class="btn-outline-custom">
+          <i class="fas fa-cog me-2"></i>Settings
+        </a>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}

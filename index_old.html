@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Q&A Platform{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-12">
+            <!-- Beautiful Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4 fade-in">
+                <div>
+                    <h1 class="display-5 fw-bold mb-2">
+                        <i class="fas fa-home text-primary"></i> 
+                        <span class="bg-gradient-primary text-white px-3 py-1 rounded-pill">Recent Questions</span>
+                    </h1>
+                    <p class="text-muted mb-0">Discover amazing questions from our community</p>
+                </div>
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('ask_question') }}" class="btn btn-primary btn-lg shadow-lg">
+                    <i class="fas fa-plus"></i> Ask Question
+                </a>
+                {% endif %}
+            </div>
+
+            <!-- Beautiful Search -->
+            <div class="search-container mb-5 slide-up">
+                <form method="POST" action="{{ url_for('search') }}">
+                    {{ search_form.hidden_tag() }}
+                    <div class="position-relative">
+                        {{ search_form.query(class="form-control search-input", placeholder="🔍 Search questions, tags, or topics...") }}
+                        <button type="submit" class="search-btn">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Trending Topics -->
+            {% if trending_topics %}
+            <div class="mb-5 fade-in">
+                <h3 class="mb-3">
+                    <i class="fas fa-fire text-warning"></i> 
+                    <span class="badge bg-warning text-dark px-3 py-2">Trending Topics</span>
+                </h3>
+                <div class="d-flex flex-wrap gap-2">
+                    {% for topic in trending_topics %}
+                    <span class="tag">
+                        <i class="fas fa-hashtag"></i> {{ topic }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Questions Grid -->
+            {% if questions %}
+                <div class="row">
+                    {% for question in questions %}
+                    <div class="col-lg-6 mb-4">
+                        <div class="question-card h-100 fade-in" style="animation-delay: {{ loop.index * 0.1 }}s">
+                            <div class="d-flex">
+                                <!-- Voting Section -->
+                                <div class="vote-buttons">
+                                    <button class="vote-btn" data-item-type="question" data-item-id="{{ question.id }}" data-value="1">
+                                        <i class="fas fa-arrow-up"></i>
+                                    </button>
+                                    <div class="vote-count" id="vote-count-question-{{ question.id }}">
+                                        {{ question.votes | sum(attribute='value') if question.votes else 0 }}
+                                    </div>
+                                    <button class="vote-btn" data-item-type="question" data-item-id="{{ question.id }}" data-value="-1">
+                                        <i class="fas fa-arrow-down"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Content Section -->
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h3 class="question-title">
+                                            <a href="{{ url_for('question_detail', id=question.id) }}" class="text-decoration-none">
+                                                {{ question.title }}
+                                            </a>
+                                        </h3>
+                                        {% if question.is_accepted %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check"></i> Solved
+                                        </span>
+                                        {% endif %}
+                                    </div>
+
+                                    <p class="question-content">
+                                        {{ question.content|clean_html|truncate(200)|nl2br|safe }}
+                                    </p>
+
+                                    <!-- Tags -->
+                                    <div class="mb-3">
+                                        {% for tag in question.tags %}
+                                        <span class="tag">
+                                            <i class="fas fa-tag"></i> {{ tag.name }}
+                                        </span>
+                                        {% endfor %}
+                                    </div>
+
+                                    <!-- Meta Information -->
+                                    <div class="question-meta">
+                                        <span class="text-primary">
+                                            <i class="fas fa-user"></i> 
+                                            <strong>{{ question.author.username }}</strong>
+                                        </span>
+                                        <span class="text-muted">
+                                            <i class="fas fa-calendar"></i> 
+                                            {{ question.created_at.strftime('%b %d, %Y') }}
+                                        </span>
+                                        <span class="text-info">
+                                            <i class="fas fa-comment"></i> 
+                                            {{ question.answers|length }} answers
+                                        </span>
+                                        <span class="text-warning">
+                                            <i class="fas fa-eye"></i> 
+                                            {{ question.views or 0 }} views
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+            <!-- Empty State -->
+            <div class="text-center py-5 fade-in">
+                <div class="mb-4">
+                    <i class="fas fa-inbox fa-4x text-muted"></i>
+                </div>
+                <h3 class="text-muted mb-3">No questions yet</h3>
+                <p class="text-muted mb-4">Be the first to ask a question and start the conversation!</p>
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('ask_question') }}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-plus"></i> Ask First Question
+                </a>
+                {% else %}
+                <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-sign-in-alt"></i> Login to Ask Question
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Custom Styles -->
+<style>
+.bg-gradient-primary {
+    background: var(--gradient-primary);
+}
+.question-card {
+    transition: all 0.3s ease;
+    border-left: 4px solid var(--primary-color);
+}
+.question-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-xl);
+}
+.question-title a {
+    color: var(--text-primary);
+    transition: color 0.3s ease;
+}
+.question-title a:hover {
+    color: var(--primary-color);
+}
+</style>
+{% endblock %}
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-1 text-center">
+                            <div class="d-flex flex-column align-items-center">
+                                {% if current_user.is_authenticated %}
+                                <button type="button" class="vote-button mb-1" 
+                                        onclick="vote('question', {{ question.id }}, 1)"
+                                        id="upvote-question-{{ question.id }}">
+                                    <i class="fas fa-chevron-up"></i>
+                                </button>
+                                {% endif %}
+                                <div class="vote-count" id="vote-count-question-{{ question.id }}">
+                                    {{ question.votes|map(attribute='value')|list|sum if question.votes else 0 }}
+                                </div>
+                                {% if current_user.is_authenticated %}
+                                <button type="button" class="vote-button mt-1" 
+                                        onclick="vote('question', {{ question.id }}, -1)"
+                                        id="downvote-question-{{ question.id }}">
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-11">
+                            <h4>
+                                <a href="{{ url_for('question_detail', id=question.id) }}" 
+                                   class="text-decoration-none">
+                                    {{ question.title }}
+                                </a>
+                            </h4>
+                            <p class="text-muted mb-2">
+                                {{ question.content[:200] }}{% if question.content|length > 200 %}...{% endif %}
+                            </p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    {% for tag in question.tags %}
+                                    <span class="tag">{{ tag.name }}</span>
+                                    {% endfor %}
+                                </div>
+                                <div class="stats">
+                                    <a href="{{ url_for('user_profile', username=question.author.username) }}" class="text-decoration-none">
+                                        <i class="fas fa-user"></i> {{ question.author.username }}
+                                    </a> • 
+                                    <i class="fas fa-clock"></i> {{ question.created_at.strftime('%b %d, %Y') }} • 
+                                    <i class="fas fa-comment"></i> {{ question.answers|length }} answers
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-comments fa-3x text-muted mb-3"></i>
+                <h3>No questions yet</h3>
+                <p class="text-muted">Be the first to ask a question!</p>
+                {% if not current_user.is_authenticated %}
+                <a href="{{ url_for('register') }}" class="btn btn-primary">Register to Ask Question</a>
+                {% else %}
+                <a href="{{ url_for('ask_question') }}" class="btn btn-primary">Ask Your First Question</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
